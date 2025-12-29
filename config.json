@@ -1,0 +1,24 @@
+{
+    "header_anchors": [
+        "单位客户专用回单",
+        "中国建设银行"
+    ],
+    "footer_anchors": [
+        "此回单以客户真实交易为依据"
+    ],
+    "crop_margins": {
+        "top": 30,
+        "bottom": 40
+    },
+    "category_keywords": {
+        "income": ["富友", "上海富友", "特约商户"],
+        "salary": ["工资", "奖金", "代发", "保险费", "公积金", "税务", "税", "社保"],
+        "fees": ["手续费", "工本费", "服务费"]
+    },
+    "output_order": [
+        "income", 
+        "salary", 
+        "fees", 
+        "others"
+    ]
+}
