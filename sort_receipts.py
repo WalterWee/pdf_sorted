@@ -6,6 +6,16 @@ import sys
 import glob
 import datetime # Added for timestamp
 
+def resource_path(relative_path):
+    """ 获取资源的绝对路径，无论是开发环境还是PyInstaller环境. """
+    try:
+        # PyInstaller 创建一个临时文件夹，并把路径存储在 _MEIPASS 中
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 def load_config(config_path="config.json"):
     """从JSON文件加载配置"""
     print(f"正在加载配置文件: {config_path}")
@@ -224,65 +234,67 @@ def sort_bank_receipts(input_path, output_path, config):
 
 
 if __name__ == "__main__":
-            # --- 配置 ---
-            CONFIG_FILE = "config.json"
+    # --- 配置 ---
+    config_path = resource_path("config.json")
+    
+    # --- 输入文件处理 ---
+    input_file_path = None
+    
+    # 1. 尝试从命令行参数获取输入文件
+    if len(sys.argv) > 1:
+        input_file_path = sys.argv[1]
+    
+    if not input_file_path:
+        # 2. 如果没有命令行参数，列出当前目录下的PDF文件供用户选择
+        pdf_files = glob.glob("*.pdf")
+        # 排除可能存在的已排序文件
+        pdf_files = [f for f in pdf_files if not f.endswith('_sorted.pdf')]
+
+        if pdf_files:
+            print("\n当前目录下的PDF文件：")
+            for i, pdf_file in enumerate(pdf_files):
+                print(f"  [{i+1}] {pdf_file}")
             
-            # --- 输入文件处理 ---
-            input_file_path = None
-            
-            # 1. 尝试从命令行参数获取输入文件
-            if len(sys.argv) > 1:
-                input_file_path = sys.argv[1]
-            
-            if not input_file_path:
-                # 2. 如果没有命令行参数，列出当前目录下的PDF文件供用户选择
-                pdf_files = glob.glob("*.pdf")
-                # 排除可能存在的已排序文件
-                pdf_files = [f for f in pdf_files if not f.endswith('_sorted.pdf')]
-        
-                if pdf_files:
-                    print("\n当前目录下的PDF文件：")
-                    for i, pdf_file in enumerate(pdf_files):
-                        print(f"  [{i+1}] {pdf_file}")
-                    
-                    while True:
-                        choice = input("请选择要处理的PDF文件编号，或直接输入文件名：").strip()
-                        if not choice:
-                            print("请输入一个选项。")
-                            continue
-                        
-                        if choice.isdigit():
-                            idx = int(choice) - 1
-                            if 0 <= idx < len(pdf_files):
-                                input_file_path = pdf_files[idx]
-                                break
-                            else:
-                                print("无效的编号，请重新输入。")
-                        else:
-                            input_file_path = choice
-                            break
+            while True:
+                choice = input("请选择要处理的PDF文件编号，或直接输入文件名：").strip()
+                if not choice:
+                    print("请输入一个选项。")
+                    continue
+                
+                if choice.isdigit():
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(pdf_files):
+                        input_file_path = pdf_files[idx]
+                        break
+                    else:
+                        print("无效的编号，请重新输入。")
                 else:
-                    # 3. 如果没有找到PDF文件，提示用户手动输入
-                    input_file_path = input("当前目录下没有可供处理的PDF文件。请输入要处理的PDF文件名：").strip()
-                    if not input_file_path:
-                        print("未指定输入文件，程序退出。")
-                        sys.exit(1)
+                    input_file_path = choice
+                    break
+        else:
+            # 3. 如果没有找到PDF文件，提示用户手动输入
+            input_file_path = input("当前目录下没有可供处理的PDF文件。请输入要处理的PDF文件名：").strip()
+            if not input_file_path:
+                print("未指定输入文件，程序退出。")
+                sys.exit(1)
+
+    # --- 动态生成输出文件名 ---
+    base_name = os.path.splitext(os.path.basename(input_file_path))[0]
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file_path = f"{base_name}_sorted_{timestamp}.pdf"
+    print(f"输出文件将保存为: {output_file_path}")
+
+    # --- 执行 ---
+    try:
+        if not os.path.exists(input_file_path):
+            raise FileNotFoundError(f"错误：找不到输入文件 '{input_file_path}'，请确认文件名正确。")
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(f"错误：找不到配置文件 '{config_path}'，请确认文件存在。")
+            
+        app_config = load_config(config_path)
+        sort_bank_receipts(input_file_path, output_file_path, app_config)
         
-                # --- 动态生成输出文件名 ---
-                base_name = os.path.splitext(os.path.basename(input_file_path))[0]
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_file_path = f"{base_name}_sorted_{timestamp}.pdf"
-                print(f"输出文件将保存为: {output_file_path}")        
-            # --- 执行 ---
-            try:
-                if not os.path.exists(input_file_path):
-                    raise FileNotFoundError(f"错误：找不到输入文件 '{input_file_path}'，请确认文件名正确。")
-                if not os.path.exists(CONFIG_FILE):
-                    raise FileNotFoundError(f"错误：找不到配置文件 '{CONFIG_FILE}'，请确认文件存在。")
-                    
-                app_config = load_config(CONFIG_FILE)
-                sort_bank_receipts(input_file_path, output_file_path, app_config)                
-            except (FileNotFoundError, json.JSONDecodeError) as e:
-                print(f"\n错误: {e}")
-            except Exception as e:
-                print(f"\n发生未知错误: {e}")
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"\n错误: {e}")
+    except Exception as e:
+        print(f"\n发生未知错误: {e}")
