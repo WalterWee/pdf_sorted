@@ -8,3 +8,8 @@ __pycache__/
 # IDE settings
 .vscode/
 .idea/
+
+# PyInstaller artifacts
+/dist
+/build
+*.spec

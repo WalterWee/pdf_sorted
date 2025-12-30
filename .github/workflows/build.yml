@@ -1,0 +1,43 @@
+name: Build Executables
+
+on:
+  push:
+    branches: [ "main" ] # 当代码推送到 main 分支时触发
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest] # 定义要运行的操作系统
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9' # 您可以根据需要更改 Python 版本
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build with PyInstaller (Linux)
+      if: runner.os == 'Linux'
+      run: pyinstaller --onefile --add-data "config.json:." sort_receipts.py
+
+    - name: Build with PyInstaller (Windows)
+      if: runner.os == 'Windows'
+      run: pyinstaller --onefile --add-data "config.json;." sort_receipts.py
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pdf-sorter-${{ runner.os }}
+        path: dist/
