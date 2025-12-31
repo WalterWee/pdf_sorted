@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 回单分类工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        main {
+            text-align: center;
+            padding: 40px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 450px;
+        }
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 24px;
+        }
+        .button {
+            padding: 12px 24px;
+            border: none;
+            background-color: #1a73e8;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+            width: 100%;
+        }
+        .button:hover { background-color: #185abc; }
+        .button:disabled { background-color: #9e9e9e; cursor: not-allowed; }
+        
+        #upload-view form { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        #upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 30px 50px;
+            transition: background-color 0.2s;
+            width: 350px;
+            color: #5f6368;
+        }
+        #upload-area.dragover { background-color: #e8f0fe; border-color: #1a73e8; }
+        #upload-text-indicator { color: #34a853; font-weight: bold; height: 20px; }
+        #select-btn { background-color: #f1f3f4; color: #3c4043; border: 1px solid #dadce0; }
+        #select-btn:hover { background-color: #e8eaed; }
+        input[type="file"] { display: none; }
+
+        #result-view { display: none; }
+        #result-message { margin: 20px 0; font-size: 16px; color: #333; }
+        #result-filename { font-weight: bold; color: #34a853; }
+        #reset-btn { margin-top: 10px; background-color: #5f6368; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>PDF 回单分类工具</h1>
+        
+        <div id="upload-view">
+            <p id="upload-text-indicator"></p>
+            <form id="upload-form">
+                <div id="upload-area" class="upload-area">将 PDF 文件拖拽至此区域</div>
+                <input type="file" id="pdf-file" name="file" accept=".pdf" required>
+                <button type="button" id="select-btn" class="button">从电脑选择...</button>
+                <button type="submit" id="submit-btn" class="button">上传并整理</button>
+            </form>
+        </div>
+
+        <div id="result-view">
+            <div id="result-message"></div>
+            <button id="reset-btn" class="button">处理另一个文件</button>
+        </div>
+    </main>
+
+    <script>
+        // Views
+        const uploadView = document.getElementById('upload-view');
+        const resultView = document.getElementById('result-view');
+        
+        // Upload View Elements
+        const form = document.getElementById('upload-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const selectBtn = document.getElementById('select-btn');
+        const fileInput = document.getElementById('pdf-file');
+        const uploadArea = document.getElementById('upload-area');
+        const uploadTextIndicator = document.getElementById('upload-text-indicator');
+
+        // Result View Elements
+        const resultMessage = document.getElementById('result-message');
+        const resultFilename = document.getElementById('result-filename');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // --- Event Listeners ---
+        selectBtn.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => { e.stopPropagation(); e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', (e) => { e.stopPropagation(); e.preventDefault(); uploadArea.classList.remove('dragleave'); });
+        uploadArea.addEventListener('drop', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                fileInput.files = files;
+                updateUiWithFileName(files[0].name);
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                setTimeout(() => updateUiWithFileName(fileInput.files[0].name), 100);
+            }
+        });
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (fileInput.files.length === 0) {
+                alert('请先选择一个 PDF 文件。');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            selectBtn.disabled = true;
+            submitBtn.textContent = '正在处理中，请稍候...';
+
+            const formData = new FormData(form);
+            try {
+                const response = await fetch('/', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showResultView(data.output_filename, data.output_path); // output_path is still passed, but not used for open_folder
+                } else {
+                    alert(`处理失败: ${data.message}`);
+                    resetUi();
+                }
+            } catch (error) {
+                alert(`发生网络错误: ${error}`);
+                resetUi();
+            }
+        });
+        
+        resetBtn.addEventListener('click', resetUi);
+
+        // --- UI Functions ---
+        function updateUiWithFileName(filename) {
+            uploadTextIndicator.textContent = `已选择: ${filename}`;
+            submitBtn.disabled = false;
+        }
+
+        function showResultView(filename, outputPath) { // outputPath is no longer directly used
+            resultMessage.innerHTML = `处理完成！<br>生成文件: <span id="result-filename">${filename}</span><br>文件已保存在应用所在文件夹的 'uploads' 目录中。`;
+            uploadView.style.display = 'none';
+            resultView.style.display = 'block';
+        }
+
+        function resetUi() {
+            uploadView.style.display = 'block';
+            resultView.style.display = 'none';
+            fileInput.value = '';
+            uploadTextIndicator.textContent = '';
+            submitBtn.disabled = true;
+            selectBtn.disabled = false;
+            submitBtn.textContent = '上传并整理';
+        }
+
+        // Initialize UI state
+        resetUi();
+    </script>
+</body>
+</html>
