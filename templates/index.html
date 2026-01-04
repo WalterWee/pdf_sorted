@@ -132,7 +132,7 @@
         // --- UI & Settings Functions ---
         function updateUiWithFileName(filename) { uploadTextIndicator.textContent = `已选择: ${filename}`; submitBtn.disabled = false; }
         function showResultView(filename) {
-            resultMessage.innerHTML = `处理完成！<br>生成文件: <strong id="result-filename">${filename}</strong><br><br>文件已保存在应用所在文件夹的 'uploads' 目录中。`;
+            resultMessage.innerHTML = `处理完成！<br>生成文件: <strong id="result-filename">${filename}</strong><br><br>文件已保存在应用所在文件夹的 '已整理的回单' 目录中。`;
             uploadView.style.display = 'none';
             resultView.style.display = 'block';
         }

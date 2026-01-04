@@ -15,7 +15,7 @@ __pycache__/
 *.spec
 
 # User uploads
-/uploads/
+/已整理的回单/
 
 # Development log
 development_log.md

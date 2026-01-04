@@ -1,7 +1,8 @@
 import os
 import uuid
 import webbrowser
-import json # For saving config
+import json
+import datetime # For timestamp in filenames
 from threading import Timer
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
@@ -10,23 +11,23 @@ from werkzeug.utils import secure_filename
 from sort_receipts import sort_bank_receipts, load_config, resource_path
 
 # --- 配置 ---
-UPLOAD_FOLDER = 'uploads'
+OUTPUT_FOLDER = '已整理的回单' # 新的文件夹名
 ALLOWED_EXTENSIONS = {'pdf'}
-CONFIG_PATH = resource_path("config.json") # Use resource_path for config
+CONFIG_PATH = resource_path("config.json")
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['SECRET_KEY'] = 'super secret key'
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+if not os.path.exists(OUTPUT_FOLDER):
+    os.makedirs(OUTPUT_FOLDER)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Web 路由 ---
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def index():
     return render_template('index.html')
 
@@ -40,40 +41,43 @@ def upload_and_process():
         return jsonify({'status': 'error', 'message': 'No selected file'}), 400
         
     if file and allowed_file(file.filename):
-        unique_id = str(uuid.uuid4())
         original_filename = secure_filename(file.filename)
-        input_filename = f"{unique_id}_{original_filename}"
-        output_filename = f"{unique_id}_sorted.pdf"
+        
+        # --- 文件名和路径生成逻辑更新 ---
+        # 使用时间戳代替UUID，并确保显示和保存的文件名一致
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name = os.path.splitext(original_filename)[0]
+        output_filename = f"{base_name}_sorted_{timestamp}.pdf"
 
-        input_path = os.path.join(app.config['UPLOAD_FOLDER'], input_filename)
-        output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+        # 使用 os.path.join 来创建路径
+        temp_input_path = os.path.join(app.config['OUTPUT_FOLDER'], f"temp_{uuid.uuid4()}.pdf")
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         
         try:
-            file.save(input_path)
+            file.save(temp_input_path)
             
             app_config = load_config(CONFIG_PATH)
-            sort_bank_receipts(input_path, output_path, app_config)
+            sort_bank_receipts(temp_input_path, output_path, app_config)
             
             return jsonify({
                 'status': 'success',
                 'message': f"文件 '{original_filename}' 处理完成！",
                 'output_path': os.path.abspath(output_path),
-                'output_filename': f"{os.path.splitext(original_filename)[0]}_sorted.pdf"
+                'output_filename': output_filename # 返回真实、唯一的文件名
             })
 
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
         finally:
-            if os.path.exists(input_path):
-                os.remove(input_path)
+            # 清理临时的输入文件
+            if os.path.exists(temp_input_path):
+                os.remove(temp_input_path)
     else:
         return jsonify({'status': 'error', 'message': 'Invalid file type'}), 400
 
-# --- 新增的配置 API ---
-
+# --- 配置 API (保持不变) ---
 @app.route('/api/config', methods=['GET'])
 def get_config():
-    """读取并返回当前的 config.json 内容"""
     try:
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             config_data = json.load(f)
@@ -83,7 +87,6 @@ def get_config():
 
 @app.route('/api/config', methods=['POST'])
 def save_config():
-    """从前端接收 JSON 数据并保存到 config.json"""
     try:
         new_config = request.get_json()
         if not new_config:
@@ -95,7 +98,6 @@ def save_config():
         return jsonify({'status': 'success', 'message': '配置已保存！'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 # --- 关机路由 (保持不变) ---
 def shutdown_server():
