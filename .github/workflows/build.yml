@@ -59,8 +59,8 @@ jobs:
 
       - name: Rename artifacts for release
         run: |
-          mv artifacts/pdf-sorter-Linux/sort_receipts pdf-sorter-linux-x86_64
-          mv artifacts/pdf-sorter-Windows/sort_receipts.exe pdf-sorter-windows-x86_64.exe
+          mv artifacts/pdf-sorter-Linux/run pdf-sorter-linux-x86_64
+          mv artifacts/pdf-sorter-Windows/run.exe pdf-sorter-windows-x86_64.exe
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
