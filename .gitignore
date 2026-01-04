@@ -16,3 +16,6 @@ __pycache__/
 
 # User uploads
 /uploads/
+
+# Development log
+development_log.md
