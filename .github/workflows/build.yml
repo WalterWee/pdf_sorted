@@ -31,11 +31,11 @@ jobs:
 
     - name: Build with PyInstaller (Linux)
       if: runner.os == 'Linux'
-      run: pyinstaller --onefile --add-data "config.json:." --add-data "app.py:." --add-data "sort_receipts.py:." --add-data "templates:templates" run.py
+      run: pyinstaller --onefile --windowed --add-data "config.json:." --add-data "app.py:." --add-data "sort_receipts.py:." --add-data "templates:templates" run.py
 
     - name: Build with PyInstaller (Windows)
       if: runner.os == 'Windows'
-      run: pyinstaller --onefile --add-data "config.json;." --add-data "app.py;." --add-data "sort_receipts.py;." --add-data "templates;templates" run.py
+      run: pyinstaller --onefile --windowed --add-data "config.json;." --add-data "app.py;." --add-data "sort_receipts.py;." --add-data "templates;templates" run.py
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
